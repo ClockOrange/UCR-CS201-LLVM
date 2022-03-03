@@ -2,7 +2,7 @@
 project 03
 
 
-cd UCR-CS201-LLVM
-change the func_name with test file name in LivenessAnalysis.cpp
-bash run.sh
-enter the number of test file want to test, for example “1” for “test1”
+cd UCR-CS201-LLVM <br />
+change the func_name with test file name in LivenessAnalysis.cpp <br />
+bash run.sh <br />
+enter the number of test file want to test, for example “1” for “test1” <br />
