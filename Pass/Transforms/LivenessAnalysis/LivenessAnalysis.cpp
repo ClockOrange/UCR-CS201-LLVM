@@ -5,6 +5,8 @@
 
 #include "llvm/Support/raw_ostream.h"
 
+#include "llvm/IR/CFG.h"
+
 using namespace std;
 
 using namespace llvm;
@@ -16,48 +18,145 @@ void visitor(Function &F){
 
     // Here goes what you want to do with a pass
     
-        string func_name = "test1";
+        string func_name = "test4";
         errs() << "LivenessAnalysis: " << F.getName() << "\n";
         
         // Comment this line
         if (F.getName() != func_name) return;
         
-        for (auto& basic_block : F)
+        std::map<string,std::list<BasicBlock *>> BlockRelation; // name of basic block, address of pre-basic block
+        std::map<string,std::set<string>> UEVAR_table; 
+        std::map<string,std::set<string>> VARKILL_table; 
+
+        std::map<string,std::set<string>> LIVEOUT_table; 
+        bool allSame; // check all list in hash table not change
+
+        // for (Function::iterator b = F.begin(), be = F.end(); b != be; ++b)
+        // {
+        //         errs() << "This is pre_block"<<"\n";
+        //         BasicBlock* bb = dyn_cast<BasicBlock>(&*b);
+        //         for (pred_iterator pit = pred_begin(bb), pet = pred_end(bb); pit != pet; ++pit){
+        //             errs() << "check"<<"\n";
+
+        //         }
+        // }
+
+        for (auto& basic_block_var : F)
         {
-            for (auto& inst : basic_block)
+            // two hash maps <basic block name, list of val>
+            // generate UEVAR
+            // generate VAR KILL
+            std::string basic_block_name = basic_block_var.getName().str();
+
+
+            std::set<string> temp {};
+            UEVAR_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,temp));
+            VARKILL_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,temp));
+
+            std::set<string> uevar_List = UEVAR_table.at(basic_block_name);
+            std::set<string> varkill_List = VARKILL_table.at(basic_block_name);
+
+            errs() << "------------- " << basic_block_name << " ------------ " << "\n";
+
+            for (auto& inst : basic_block_var)
             {
-                errs() << inst << "\n";
-                if(inst.getOpcode() == Instruction::Load){
-                    errs() << "This is Load"<<"\n";
+                // if load, add to UEVAR
+                if(inst.getOpcode() == Instruction::Load && basic_block_name.compare("entry") != 0){
+                    errs() << "This is Load : UEVAR"<<"\n";
+                    std::string load_name = ((*inst.getOperand(0)).getName()).str();
+                    bool found = (std::find(varkill_List.begin(), varkill_List.end(), load_name) != varkill_List.end());
+                    if(!found){
+                        errs()  <<  load_name <<"\n";
+                        uevar_List.insert(load_name);
+                    }
+                    // todo: if already KILL, then not UEVAR
                 }
+
+                // if store, add to KILL
                 if(inst.getOpcode() == Instruction::Store){
-                    errs() << "This is Store"<<"\n";
+                    errs() << "This is Store : KILL"<<"\n";
+                    // assign new ID or update superscrption
+                    auto* ptrConst = dyn_cast<User>(&inst);
+                    std::string store_name = ((*inst.getOperand(1)).getName()).str();
+                    errs() << store_name <<"\n";
+                    varkill_List.insert(store_name);
                 }
+                // if op, a <- c + d
                 if (inst.isBinaryOp())
                 {
-                    errs() << "Op Code:" << inst.getOpcodeName()<<"\n";
-                    if(inst.getOpcode() == Instruction::Add){
-                        errs() << "This is Addition"<<"\n";
-                    }
-                    if(inst.getOpcode() == Instruction::Load){
-                        errs() << "This is Load"<<"\n";
-                    }
-                    if(inst.getOpcode() == Instruction::Mul){
-                        errs() << "This is Multiplication"<<"\n";
-                    }
-                    
-                    // see other classes, Instruction::Sub, Instruction::UDiv, Instruction::SDiv
-                    // errs() << "Operand(0)" << (*inst.getOperand(0))<<"\n";
+                    std::string op_1;
+                    std::string op_2;
+
                     auto* ptr = dyn_cast<User>(&inst);
-                    errs() << "\t" << *ptr << "\n";
+                    int count = 0;
+                    //errs() << "\t" << *ptr << "\n";
                     for (auto it = ptr->op_begin(); it != ptr->op_end(); ++it) {
-                        errs() << "\t" <<  *(*it) << "\n";
-                         if ((*it)->hasName()) 
-                         errs() << (*it)->getName() << "\n";                      
+                        // errs() << "\t" <<  *(*it) << "\n";
+                        llvm::User *currIns = dyn_cast<User>(it);
+
+                        if (count == 0){
+                            // check constant
+                            if(isa<ConstantInt>(it)){
+                                auto* constantVal = dyn_cast<ConstantInt>(it);
+                                std::string currConstant = std::to_string(constantVal->getSExtValue());
+                                op_1 = currConstant;
+                            }else{
+                                op_1 = (currIns->getOperand(0)->getName()).str();
+                            }                           
+                        }
+                        if (count == 1){
+                            // check constant
+                            if(isa<ConstantInt>(it)){ // ignore constant
+                                auto* constantVal = dyn_cast<ConstantInt>(it);
+                                std::string currConstant = std::to_string(constantVal->getSExtValue());
+                                op_2 = currConstant;
+                            }else{
+                                op_2 = (currIns->getOperand(0)->getName()).str();
+                            }  
+                        }
+                        count++; 
+                        // if ((*it)->hasName()) 
+                        // errs() << (*it)->getName() << "\n";  
+                    } // end op loop
+
+                    errs() << "This is OP, UEVAR" << "\n";
+                    // todo: if already KILL, then not UEVAR
+                    bool found = (std::find(varkill_List.begin(), varkill_List.end(), op_1) != varkill_List.end());
+                    if(!found){
+                        errs() << op_1 << "\n";
+                        uevar_List.insert(op_1);
                     }
-                } // end if
-            } // end for inst
-        } // end for block
+
+                    found = (std::find(varkill_List.begin(), varkill_List.end(), op_2) != varkill_List.end());
+                    if(!found){
+                        errs() << op_2 << "\n";
+                        uevar_List.insert(op_2);
+                    }
+                    // op_1, op_2 add to UEVAR
+
+
+                } // end if op
+            } // end one bb
+
+        } // end all bb
+
+
+       for (auto& basic_block : F)
+        {
+            // if ENTRY
+            // OTHER
+            // generate live out for predecessors, update
+
+            errs() << basic_block.getName() << "\n";
+            for (BasicBlock *Pred : predecessors(&basic_block)) {
+
+                errs() << "This is pre_block check"<<"\n";
+                errs() << Pred->getName() << "\n";
+               
+            }
+            errs() << " -------- " << "\n";
+         
+        }
         
 }
 
