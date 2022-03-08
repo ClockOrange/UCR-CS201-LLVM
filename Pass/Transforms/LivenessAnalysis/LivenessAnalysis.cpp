@@ -24,37 +24,16 @@ void visitor(Function &F){
         // Comment this line
         if (F.getName() != func_name) return;
         
-        std::map<string,std::list<BasicBlock *>> BlockRelation; // name of basic block, address of pre-basic block
         std::map<string,std::set<string>> UEVAR_table; 
         std::map<string,std::set<string>> VARKILL_table; 
-
-        std::map<string,std::set<string>> LIVEOUT_table; 
-        bool allSame; // check all list in hash table not change
-
-        // for (Function::iterator b = F.begin(), be = F.end(); b != be; ++b)
-        // {
-        //         errs() << "This is pre_block"<<"\n";
-        //         BasicBlock* bb = dyn_cast<BasicBlock>(&*b);
-        //         for (pred_iterator pit = pred_begin(bb), pet = pred_end(bb); pit != pet; ++pit){
-        //             errs() << "check"<<"\n";
-
-        //         }
-        // }
-
+        
+        // generate UEVAR
+        // generate VAR KILL
         for (auto& basic_block_var : F)
         {
-            // two hash maps <basic block name, list of val>
-            // generate UEVAR
-            // generate VAR KILL
             std::string basic_block_name = basic_block_var.getName().str();
-
-
-            std::set<string> temp {};
-            UEVAR_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,temp));
-            VARKILL_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,temp));
-
-            std::set<string> uevar_List = UEVAR_table.at(basic_block_name);
-            std::set<string> varkill_List = VARKILL_table.at(basic_block_name);
+            std::set<string> uevar_List = {};
+            std::set<string> varkill_List = {};
 
             errs() << "------------- " << basic_block_name << " ------------ " << "\n";
 
@@ -62,30 +41,34 @@ void visitor(Function &F){
             {
                 // if load, add to UEVAR
                 if(inst.getOpcode() == Instruction::Load && basic_block_name.compare("entry") != 0){
-                    errs() << "This is Load : UEVAR"<<"\n";
+                    //errs() << "This is Load : UEVAR"<<"\n";
                     std::string load_name = ((*inst.getOperand(0)).getName()).str();
                     bool found = (std::find(varkill_List.begin(), varkill_List.end(), load_name) != varkill_List.end());
                     if(!found){
-                        errs()  <<  load_name <<"\n";
+                        //errs()  <<  load_name <<"\n";
                         uevar_List.insert(load_name);
+                        // todo: if already KILL, then not UEVAR
                     }
-                    // todo: if already KILL, then not UEVAR
                 }
 
                 // if store, add to KILL
                 if(inst.getOpcode() == Instruction::Store){
-                    errs() << "This is Store : KILL"<<"\n";
-                    // assign new ID or update superscrption
-                    auto* ptrConst = dyn_cast<User>(&inst);
+                    //errs() << "This is Store : KILL"<<"\n";             
                     std::string store_name = ((*inst.getOperand(1)).getName()).str();
-                    errs() << store_name <<"\n";
-                    varkill_List.insert(store_name);
+                    //errs() << store_name <<"\n";
+                    bool found = (std::find(varkill_List.begin(), varkill_List.end(), store_name) != varkill_List.end());
+                    if(!found){
+                        varkill_List.insert(store_name);
+                    }
                 }
                 // if op, a <- c + d
                 if (inst.isBinaryOp())
                 {
                     std::string op_1;
                     std::string op_2;
+
+                    bool op_1_const = false;
+                    bool op_2_const = false;
 
                     auto* ptr = dyn_cast<User>(&inst);
                     int count = 0;
@@ -99,7 +82,7 @@ void visitor(Function &F){
                             if(isa<ConstantInt>(it)){
                                 auto* constantVal = dyn_cast<ConstantInt>(it);
                                 std::string currConstant = std::to_string(constantVal->getSExtValue());
-                                op_1 = currConstant;
+                                op_1_const = true;
                             }else{
                                 op_1 = (currIns->getOperand(0)->getName()).str();
                             }                           
@@ -109,7 +92,7 @@ void visitor(Function &F){
                             if(isa<ConstantInt>(it)){ // ignore constant
                                 auto* constantVal = dyn_cast<ConstantInt>(it);
                                 std::string currConstant = std::to_string(constantVal->getSExtValue());
-                                op_2 = currConstant;
+                                op_2_const = true;
                             }else{
                                 op_2 = (currIns->getOperand(0)->getName()).str();
                             }  
@@ -119,29 +102,52 @@ void visitor(Function &F){
                         // errs() << (*it)->getName() << "\n";  
                     } // end op loop
 
-                    errs() << "This is OP, UEVAR" << "\n";
+                    //errs() << "This is OP, UEVAR" << "\n";
                     // todo: if already KILL, then not UEVAR
-                    bool found = (std::find(varkill_List.begin(), varkill_List.end(), op_1) != varkill_List.end());
-                    if(!found){
-                        errs() << op_1 << "\n";
-                        uevar_List.insert(op_1);
+                    if(!op_1_const){
+                        bool found = (std::find(varkill_List.begin(), varkill_List.end(), op_1) != varkill_List.end());
+                        if(!found){
+                            //errs() << op_1 << "\n";
+                            uevar_List.insert(op_1);
+                        }
                     }
-
-                    found = (std::find(varkill_List.begin(), varkill_List.end(), op_2) != varkill_List.end());
-                    if(!found){
-                        errs() << op_2 << "\n";
-                        uevar_List.insert(op_2);
-                    }
-                    // op_1, op_2 add to UEVAR
-
-
+                    
+                    if(!op_2_const){
+                        bool found = (std::find(varkill_List.begin(), varkill_List.end(), op_2) != varkill_List.end());
+                        if(!found){
+                            //errs() << op_2 << "\n";
+                            uevar_List.insert(op_2);
+                        }
+                    }                   
                 } // end if op
+
             } // end one bb
+            UEVAR_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,uevar_List));
+            VARKILL_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,varkill_List));
 
+            //errs() << " ----------- " << basic_block_name << " ---------------" << "\n";
+            errs() << "UEVAR : ";
+            std::set<std::string>::iterator itUevar;
+            for ( auto itUevar = uevar_List.begin(); itUevar != uevar_List.end(); ++itUevar  )
+            {
+                errs() << (*itUevar) << ", ";
+            } 
+            errs() <<"\n";
+
+            errs() << "KILL : ";
+            std::set<std::string>::iterator itKill;
+            for ( auto itKill = varkill_List.begin(); itKill != varkill_List.end(); ++itKill  )
+            {
+                errs()  << (*itKill) << ", ";
+            } 
+            errs() <<"\n";
         } // end all bb
+        
+        errs() << " ---------------- END CHECK ---------------" << "\n" << "\n";
 
-
-       for (auto& basic_block : F)
+        std::map<string,std::set<string>> LIVEOUT_table; 
+        bool allSame; // check all list in hash table not change
+        for (auto& basic_block : F)
         {
             // if ENTRY
             // OTHER
