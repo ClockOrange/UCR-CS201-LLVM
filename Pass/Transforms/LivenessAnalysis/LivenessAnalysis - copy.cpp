@@ -23,7 +23,7 @@ void visitor(Function &F){
         errs() << "LivenessAnalysis: " << F.getName() << "\n";
         
         // Comment this line
-        if (F.getName() != func_name) return;
+        //if (F.getName() != func_name) return;
         
         std::map<string,std::set<string>> UEVAR_table; 
         std::map<string,std::set<string>> VARKILL_table; 
@@ -153,15 +153,18 @@ void visitor(Function &F){
             std::string name = basic_block.getName().str();
             LIVEOUT_table.insert(std::pair<std::string,std::set<string>>(name,liveout_list));
         }
-        bool Continue == true; // check all list in hash table not change
+        bool Continue = true; // check all list in hash table not change
         while (Continue){
-            Continue == false;
+            Continue = false;
+
+            
+            
             for (auto& basic_block : F){
                 std::set<string> new_liveout_list = {};
 
                 //Union(Liveout(successor) - Killset(successor) + UEE(successor))
-                for (BasicBlock *succ : successors(basic_block)){
-                    std::string succ_name = succ.getName().str();
+                for (BasicBlock *succ : successors(&basic_block)){
+                    std::string succ_name = succ->getName().str();
                     std::set<string> kill;
                     std::set<string> uevar;
                     std::set<string> succ_liveout;
@@ -186,11 +189,21 @@ void visitor(Function &F){
                 std::map<string,std::set<string>>::iterator search_block;
                 std::string name = basic_block.getName().str();
                 search_block = LIVEOUT_table.find(name);
-                if (search_block->second != new_liveout_list)
+
+                std::set<string> old;
+                old = search_block->second;
+                LIVEOUT_table[name] = new_liveout_list;
+                
+                if (old != new_liveout_list)
                 {
-                    Continue == true;
+                    Continue = true;
+
                 }
                 
+
+                
+                
+
 
 
 
@@ -213,11 +226,12 @@ void visitor(Function &F){
             x = search_bb->second;
 
             
-            set<int>::iterator it=x.begin();
+            std::set<std::string>::iterator it=x.begin();
             while(it!=x.end()){
-                errs() << *it << "\n";
+                errs() << (*it) << ",";
                 it++;
             }
+            errs() <<"\n";
 
             errs() << " -------- " << "\n";
          
