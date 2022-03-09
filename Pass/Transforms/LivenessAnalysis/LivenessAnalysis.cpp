@@ -35,27 +35,21 @@ void visitor(Function &F){
             std::set<string> uevar_List = {};
             std::set<string> varkill_List = {};
 
-            //errs() << "------------- " << basic_block_name << " ------------ " << "\n";
 
             for (auto& inst : basic_block_var)
             {
                 // if load, add to UEVAR
                 if(inst.getOpcode() == Instruction::Load && basic_block_name.compare("entry") != 0){
-                    //errs() << "This is Load : UEVAR"<<"\n";
                     std::string load_name = ((*inst.getOperand(0)).getName()).str();
                     bool found = (std::find(varkill_List.begin(), varkill_List.end(), load_name) != varkill_List.end());
                     if(!found){
-                        //errs()  <<  load_name <<"\n";
                         uevar_List.insert(load_name);
-                        // todo: if already KILL, then not UEVAR
                     }
                 }
 
                 // if store, add to KILL
-                if(inst.getOpcode() == Instruction::Store){
-                    //errs() << "This is Store : KILL"<<"\n";             
+                if(inst.getOpcode() == Instruction::Store){            
                     std::string store_name = ((*inst.getOperand(1)).getName()).str();
-                    //errs() << store_name <<"\n";
                     bool found = (std::find(varkill_List.begin(), varkill_List.end(), store_name) != varkill_List.end());
                     if(!found){
                         varkill_List.insert(store_name);
@@ -72,9 +66,7 @@ void visitor(Function &F){
 
                     auto* ptr = dyn_cast<User>(&inst);
                     int count = 0;
-                    //errs() << "\t" << *ptr << "\n";
                     for (auto it = ptr->op_begin(); it != ptr->op_end(); ++it) {
-                        // errs() << "\t" <<  *(*it) << "\n";
                         llvm::User *currIns = dyn_cast<User>(it);
 
                         if (count == 0){
@@ -98,16 +90,12 @@ void visitor(Function &F){
                             }  
                         }
                         count++; 
-                        // if ((*it)->hasName()) 
-                        // errs() << (*it)->getName() << "\n";  
+
                     } // end op loop
 
-                    //errs() << "This is OP, UEVAR" << "\n";
-                    // todo: if already KILL, then not UEVAR
                     if(!op_1_const){
                         bool found = (std::find(varkill_List.begin(), varkill_List.end(), op_1) != varkill_List.end());
                         if(!found){
-                            //errs() << op_1 << "\n";
                             uevar_List.insert(op_1);
                         }
                     }
@@ -115,7 +103,6 @@ void visitor(Function &F){
                     if(!op_2_const){
                         bool found = (std::find(varkill_List.begin(), varkill_List.end(), op_2) != varkill_List.end());
                         if(!found){
-                            //errs() << op_2 << "\n";
                             uevar_List.insert(op_2);
                         }
                     }                   
@@ -125,25 +112,7 @@ void visitor(Function &F){
             UEVAR_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,uevar_List));
             VARKILL_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,varkill_List));
 
-            //errs() << " ----------- " << basic_block_name << " ---------------" << "\n";
-            // errs() << "UEVAR : ";
-            // std::set<std::string>::iterator itUevar;
-            // for ( auto itUevar = uevar_List.begin(); itUevar != uevar_List.end(); ++itUevar  )
-            // {
-            //     errs() << (*itUevar) << ", ";
-            // } 
-            // errs() <<"\n";
-
-            // errs() << "KILL : ";
-            // std::set<std::string>::iterator itKill;
-            // for ( auto itKill = varkill_List.begin(); itKill != varkill_List.end(); ++itKill  )
-            // {
-            //     errs()  << (*itKill) << ", ";
-            // } 
-            // errs() <<"\n";
         } // end all bb
-        
-        //errs() << " ---------------- END CHECK ---------------" << "\n" << "\n";
 
 
        std::map<string,std::set<string>> LIVEOUT_table; 
@@ -160,7 +129,7 @@ void visitor(Function &F){
             for (auto& basic_block : F){
                 std::set<string> new_liveout_list = {};
 
-                //Union(Liveout(successor) - Killset(successor) + UEE(successor))
+                //Union(Liveout(successor) - Killset(successor) + UEVar(successor))
                 for (BasicBlock *succ : successors(&basic_block)){
                     std::string succ_name = succ->getName().str();
                     std::set<string> kill;
@@ -246,9 +215,6 @@ void visitor(Function &F){
                 it++;
             }
             errs() <<"\n";
-
-            //errs() << " -------- " << "\n";
-         
         }
 
         
