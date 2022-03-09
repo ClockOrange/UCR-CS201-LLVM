@@ -194,6 +194,7 @@ void visitor(Function &F){
                 old = search_block->second;
                 LIVEOUT_table[name] = new_liveout_list;
                 
+                //IF LIVEOUT changed
                 if (old != new_liveout_list)
                 {
                     Continue = true;
