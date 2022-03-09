@@ -36,7 +36,7 @@ void visitor(Function &F){
             std::set<string> uevar_List = {};
             std::set<string> varkill_List = {};
 
-            errs() << "------------- " << basic_block_name << " ------------ " << "\n";
+            //errs() << "------------- " << basic_block_name << " ------------ " << "\n";
 
             for (auto& inst : basic_block_var)
             {
@@ -127,24 +127,24 @@ void visitor(Function &F){
             VARKILL_table.insert(std::pair<std::string,std::set<string>>(basic_block_name,varkill_List));
 
             //errs() << " ----------- " << basic_block_name << " ---------------" << "\n";
-            errs() << "UEVAR : ";
-            std::set<std::string>::iterator itUevar;
-            for ( auto itUevar = uevar_List.begin(); itUevar != uevar_List.end(); ++itUevar  )
-            {
-                errs() << (*itUevar) << ", ";
-            } 
-            errs() <<"\n";
+            //errs() << "UEVAR : ";
+            //std::set<std::string>::iterator itUevar;
+            //for ( auto itUevar = uevar_List.begin(); itUevar != uevar_List.end(); ++itUevar  )
+            //{
+            //    errs() << (*itUevar) << ", ";
+            //} 
+            //errs() <<"\n";
 
-            errs() << "KILL : ";
-            std::set<std::string>::iterator itKill;
-            for ( auto itKill = varkill_List.begin(); itKill != varkill_List.end(); ++itKill  )
-            {
-                errs()  << (*itKill) << ", ";
-            } 
+            //errs() << "KILL : ";
+            //std::set<std::string>::iterator itKill;
+            //for ( auto itKill = varkill_List.begin(); itKill != varkill_List.end(); ++itKill  )
+            //{
+            //    errs()  << (*itKill) << ", ";
+            //} 
             errs() <<"\n";
         } // end all bb
         
-        errs() << " ---------------- END CHECK ---------------" << "\n" << "\n";
+        //errs() << " ---------------- END CHECK ---------------" << "\n" << "\n";
 
         std::map<string,std::set<string>> LIVEOUT_table; 
         for (auto& basic_block : F)
@@ -212,21 +212,40 @@ void visitor(Function &F){
             // OTHER
             // generate live out for predecessors, update
 
-            errs() << basic_block.getName() << "\n";
+            errs() << " ----- "<< basic_block.getName() << " ----- "<< "\n";
             std::map<string,std::set<string>>::iterator search_bb;
-            search_bb = LIVEOUT_table.find(basic_block.getName().str());
             std::set<string> x;
-            x = search_bb->second;
-
             
+            search_bb = UEVAR_table.find(basic_block.getName().str());
+            x = search_bb->second;
             std::set<std::string>::iterator it=x.begin();
+            errs() <<"UEVAR: ";
             while(it!=x.end()){
-                errs() << (*it) << ",";
+                errs() << (*it) << " ";
                 it++;
             }
             errs() <<"\n";
 
-            errs() << " -------- " << "\n";
+            search_bb = VARKILL_table.find(basic_block.getName().str());
+            x = search_bb->second;
+            std::set<std::string>::iterator it1=x.begin();
+            errs() <<"VARKILL: ";
+            while(it1!=x.end()){
+                errs() << (*it1) << " ";
+                it1++;
+            }
+            errs() <<"\n";
+
+            search_bb = LIVEOUT_table.find(basic_block.getName().str());
+            x = search_bb->second;
+            std::set<std::string>::iterator it2=x.begin();
+            errs() <<"LIVEOUT: ";
+            while(it2!=x.end()){
+                errs() << (*it2) << " ";
+                it2++;
+            }
+            errs() <<"\n";
+
          
         }
         
